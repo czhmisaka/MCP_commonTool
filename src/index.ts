@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { promises as fs } from 'fs';
+import path from 'path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamHandler } from './chat/StreamHandler';
@@ -16,6 +18,7 @@ import {
 import { IdentityStorage } from './storage.js';
 import { Identity, CreateIdentityDto, ApiCapability } from './types.js';
 import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
 
 class IdentityServer {
     private server: Server;
@@ -155,6 +158,40 @@ class IdentityServer {
                         },
                         required: ['identityId', 'messages']
                     }
+                },
+                {
+                    name: 'generate_official_doc',
+                    description: 'Generate official document',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            elements: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        type: {
+                                            type: 'string',
+                                            enum: ['红头文件标头', '文件函号', '正文标题', '告知对象', '正文段落', '落款', '抄送', '换行']
+                                        },
+                                        word: { type: 'string' },
+                                        date: { type: 'number', optional: true }
+                                    },
+                                    required: ['type', 'word']
+                                }
+                            },
+                            config: {
+                                type: 'object',
+                                properties: {
+                                    lineHeightNumber: { type: 'number', default: 25 },
+                                    lineNumber: { type: 'number', default: 26 },
+                                    tabIndexNumber: { type: 'number', default: 2 }
+                                }
+                            },
+                            fileName: { type: 'string', default: 'official_document.doc' }
+                        },
+                        required: ['elements']
+                    }
                 }
             ],
             definitions: {
@@ -244,6 +281,8 @@ class IdentityServer {
                     return this.handleListIdentities();
                 case 'chat':
                     return this.handleChat(request.params.arguments);
+                case 'generate_official_doc':
+                    return this.handleGenerateOfficialDoc(request.params.arguments);
                 default:
                     throw new McpError(ErrorCode.MethodNotFound, 'Unknown tool');
             }
@@ -336,6 +375,91 @@ class IdentityServer {
                 text: JSON.stringify({ success }, null, 2)
             }]
         };
+    }
+
+    private async handleGenerateOfficialDoc(args: any) {
+        const SERVER_URL = "http://123.206.222.58:4900";
+        try {
+            const docData = {
+                wordTemplate: {
+                    wordCellList: args.elements,
+                    baseData: {},
+                    baseWordConfig: args.config || {
+                        lineHeightNumber: 25,
+                        lineNumber: 26,
+                        tabIndexNumber: 2
+                    },
+                    file: {
+                        Author: "智能助手",
+                        fileName: args.fileName || "official_document.doc"
+                    }
+                }
+            };
+
+            console.log('正在创建文档...');
+            console.log(`请求URL: ${SERVER_URL}/docMaker/makeDocByTemplate`);
+            console.log('请求数据:', JSON.stringify(docData, null, 2));
+
+            // 创建文档
+            const createResponse = await axios.post(
+                `${SERVER_URL}/docMaker/makeDocByTemplate`,
+                docData,
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 30000
+                }
+            );
+
+            const docId = createResponse.data?.data?.id;
+            if (!docId) {
+                console.error('API响应:', createResponse.data);
+                throw new Error('无法获取文档ID，请检查API响应格式');
+            }
+
+            console.log('文档创建成功，ID:', docId);
+            console.log('正在下载文档...');
+            await new Promise((r, j) => {
+                setTimeout(() => {
+                    r(1)
+                }, 1000);
+            })
+            // 下载文档
+            const downloadResponse = await axios.get(
+                `${SERVER_URL}/docMaker/getFileById/${docId}`,
+                {
+                    responseType: 'arraybuffer',
+                    timeout: 30000
+                }
+            );
+
+            const fileName = args.fileName || 'official_document.doc';
+            console.log('文档下载成功:', fileName);
+
+            const filePath = path.join(__dirname, '../build/documents', fileName);
+            await fs.mkdir(path.dirname(filePath), { recursive: true });
+            await fs.writeFile(filePath, downloadResponse.data);
+
+            const fileContent = await fs.readFile(filePath);
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify({
+                        success: true,
+                        filePath: filePath,
+                        fileName: fileName
+                    }, null, 2)
+                }]
+            };
+        } catch (err: unknown) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify({ success: false, error: error.message }, null, 2)
+                }],
+                isError: true
+            };
+        }
     }
 
     private async handleListIdentities() {
