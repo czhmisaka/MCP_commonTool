@@ -16,7 +16,7 @@ exports.IdentityStorage = void 0;
 /*
  * @Date: 2025-05-12 02:59:26
  * @LastEditors: CZH
- * @LastEditTime: 2025-05-12 04:44:36
+ * @LastEditTime: 2025-05-12 05:10:56
  * @FilePath: /identity-mcp-server/src/storage.ts
  */
 const fs_1 = require("fs");
@@ -64,7 +64,7 @@ class IdentityStorage {
                     content: m,
                     keywords: [],
                     timestamp: now.toISOString()
-                } : m)) || [], chatHistory: [], createdAt: now.toISOString(), updatedAt: now.toISOString() });
+                } : m)) || [], chatHistory: [], capabilities: data.capabilities || undefined, createdAt: now.toISOString(), updatedAt: now.toISOString() });
             this.store.set(id, identity);
             yield this.saveToFile();
             return identity;

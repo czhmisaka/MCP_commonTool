@@ -1,13 +1,13 @@
 /*
  * @Date: 2025-05-12 02:59:26
  * @LastEditors: CZH
- * @LastEditTime: 2025-05-12 04:44:36
+ * @LastEditTime: 2025-05-12 05:10:56
  * @FilePath: /identity-mcp-server/src/storage.ts
  */
 import { promises as fs } from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { Identity, CreateIdentityDto, UpdateIdentityDto } from './types';
+import { Identity, CreateIdentityDto, UpdateIdentityDto, ApiCapability } from './types';
 
 const STORAGE_FILE = path.join(__dirname, '../build/identities.json');
 
@@ -53,6 +53,7 @@ export class IdentityStorage {
                 timestamp: now.toISOString()
             } : m) || [],
             chatHistory: [], // 初始化空聊天记录
+            capabilities: data.capabilities || undefined,
             createdAt: now.toISOString(),
             updatedAt: now.toISOString()
         };

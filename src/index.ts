@@ -14,7 +14,7 @@ import {
     ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { IdentityStorage } from './storage.js';
-import { Identity, CreateIdentityDto } from './types.js';
+import { Identity, CreateIdentityDto, ApiCapability } from './types.js';
 import { v4 as uuidv4 } from 'uuid';
 
 class IdentityServer {
@@ -59,6 +59,15 @@ class IdentityServer {
                                         { $ref: '#/definitions/MemoryItem' }
                                     ]
                                 }
+                            },
+                            capabilities: {
+                                type: 'object',
+                                properties: {
+                                    apis: {
+                                        type: 'array',
+                                        items: { $ref: '#/definitions/ApiCapability' }
+                                    }
+                                }
                             }
                         },
                         required: ['name']
@@ -91,6 +100,15 @@ class IdentityServer {
                                         { type: 'string' },
                                         { $ref: '#/definitions/MemoryItem' }
                                     ]
+                                }
+                            },
+                            capabilities: {
+                                type: 'object',
+                                properties: {
+                                    apis: {
+                                        type: 'array',
+                                        items: { $ref: '#/definitions/ApiCapability' }
+                                    }
                                 }
                             }
                         },
@@ -156,6 +174,58 @@ class IdentityServer {
                         }
                     },
                     required: ['id', 'content', 'keywords', 'timestamp']
+                },
+                ApiCapability: {
+                    type: 'object',
+                    properties: {
+                        name: { type: 'string' },
+                        baseUrl: { type: 'string' },
+                        endpoints: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    path: { type: 'string' },
+                                    method: {
+                                        type: 'string',
+                                        enum: ['GET', 'POST', 'PUT', 'DELETE']
+                                    },
+                                    headers: {
+                                        type: 'object',
+                                        additionalProperties: { type: 'string' }
+                                    },
+                                    auth: {
+                                        type: 'object',
+                                        properties: {
+                                            type: {
+                                                type: 'string',
+                                                enum: ['basic', 'bearer', 'apiKey']
+                                            },
+                                            credentials: { type: 'string' }
+                                        },
+                                        required: ['type', 'credentials']
+                                    },
+                                    parameters: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                name: { type: 'string' },
+                                                required: { type: 'boolean' },
+                                                in: {
+                                                    type: 'string',
+                                                    enum: ['query', 'body', 'path']
+                                                }
+                                            },
+                                            required: ['name', 'required', 'in']
+                                        }
+                                    }
+                                },
+                                required: ['path', 'method']
+                            }
+                        }
+                    },
+                    required: ['name', 'endpoints']
                 }
             }
         }));
